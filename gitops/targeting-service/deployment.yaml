@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: targeting-service
+  namespace: togglemaster
+  labels:
+    app: targeting-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: targeting-service
+  template:
+    metadata:
+      labels:
+        app: targeting-service
+    spec:
+      containers:
+        - name: targeting-service
+          # A tag abaixo é atualizada automaticamente pelo job gitops-update
+          # do pipeline de CI (.github/workflows/reusable-python-ci.yml).
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/targeting-service:v1.0.0-init
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - secretRef:
+                name: targeting-service-secrets
+          env:
+            - name: PORT
+              value: "8003"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:8001"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 15
+            periodSeconds: 20

@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: evaluation-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  evaluation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: evaluation-service
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8004}:8004"
+    environment:
+      PORT: 8004
+      REDIS_URL: redis://redis:6379
+      FLAG_SERVICE_URL: ${FLAG_SERVICE_URL:-http://host.docker.internal:8002}
+      TARGETING_SERVICE_URL: ${TARGETING_SERVICE_URL:-http://host.docker.internal:8003}
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-}
+      AWS_SQS_URL: ${AWS_SQS_URL:-}
+      AWS_REGION: ${AWS_REGION:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:

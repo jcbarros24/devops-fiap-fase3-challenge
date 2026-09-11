@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-auth_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-auth_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-auth_db}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Executado automaticamente pela imagem oficial na primeira inicialização
+      # (quando o volume ainda está vazio), criando a tabela api_keys.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-auth_user} -d ${POSTGRES_DB:-auth_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8001}:8001"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-auth_user}:${POSTGRES_PASSWORD:-auth_pass}@postgres:5432/${POSTGRES_DB:-auth_db}?sslmode=disable
+      MASTER_KEY: ${MASTER_KEY:-admin-secreto-123}
+      PORT: 8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

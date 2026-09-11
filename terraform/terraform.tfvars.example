@@ -1,0 +1,12 @@
+# Copie para terraform.tfvars (ignorado pelo git) e ajuste os valores.
+aws_region    = "us-east-1"
+project_name  = "togglemaster"
+environment   = "hml"
+
+# AWS Academy: mantenha use_lab_role = true e confirme o nome exato da role
+# (geralmente "LabRole") no console IAM do seu ambiente de lab.
+use_lab_role  = true
+lab_role_name = "LabRole"
+
+# Senha das 3 instâncias RDS — NUNCA commitar um valor real aqui.
+db_password = "CHANGE-ME"

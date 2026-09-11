@@ -1,0 +1,30 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+terraform/terraform.tfvars
+terraform/bootstrap/terraform.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Segredos locais (nunca commitar)
+**/.env
+gitops/create-secrets.sh
+
+# Go
+services/*/*.exe
+services/*/auth-service
+services/*/evaluation-service
+
+# Python
+services/*/__pycache__/
+services/*/*.pyc
+services/*/.pytest_cache/
+services/*/venv/
+
+# OS
+.DS_Store

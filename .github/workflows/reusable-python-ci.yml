@@ -1,0 +1,143 @@
+name: Reusable - Python CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+      python_version:
+        required: false
+        type: string
+        default: "3.11"
+
+permissions:
+  contents: write # necessário para o job gitops-update commitar no repo
+
+jobs:
+  build-test:
+    name: Build & Unit Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: pip
+          cache-dependency-path: ${{ inputs.service_path }}/requirements.txt
+      - name: Instala dependências
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Testes unitários
+        run: pytest -v
+
+  lint:
+    name: Linter/Static Analysis
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+      - name: Instala flake8
+        run: pip install flake8
+      - name: flake8
+        run: flake8 . --max-line-length=120 --extend-ignore=E203,W503
+
+  security-scan:
+    name: "Security Scan (SAST & SCA)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: SAST - bandit
+        working-directory: ${{ inputs.service_path }}
+        run: |
+          pip install bandit
+          bandit -r . -ll -f screen || (echo "::error::bandit encontrou vulnerabilidade(s) de severidade alta/crítica" && exit 1)
+
+      - name: SCA - Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ inputs.service_path }}
+          severity: CRITICAL,HIGH
+          exit-code: "1" # Regra de bloqueio: falha o pipeline em CRITICAL/HIGH
+          ignore-unfixed: true
+
+  docker-build-push:
+    name: Docker Build & Push
+    needs: [build-test, lint, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Define image tag
+        id: tag
+        run: echo "image_tag=v1.0.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        working-directory: ${{ inputs.service_path }}
+        run: docker build -t ${{ inputs.service_name }}:${{ steps.tag.outputs.image_tag }} .
+
+      - name: Container Scan - Trivy image
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: ${{ inputs.service_name }}:${{ steps.tag.outputs.image_tag }}
+          severity: CRITICAL
+          exit-code: "1" # Regra de bloqueio: imagem com CRÍTICA não é publicada
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login no ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push para o ECR
+        run: |
+          IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ inputs.service_name }}:${{ steps.tag.outputs.image_tag }}"
+          docker tag ${{ inputs.service_name }}:${{ steps.tag.outputs.image_tag }} "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+
+  gitops-update:
+    name: Atualiza tag no GitOps
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Atualiza deployment.yaml com a nova tag
+        run: |
+          FILE="gitops/${{ inputs.service_name }}/deployment.yaml"
+          NEW_TAG="${{ needs.docker-build-push.outputs.image_tag }}"
+          sed -i -E "s|(image: .*${{ inputs.service_name }}:).*|\1${NEW_TAG}|" "$FILE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$FILE"
+          git commit -m "chore(gitops): atualiza ${{ inputs.service_name }} para ${NEW_TAG}" || echo "Nada para commitar"
+          git push

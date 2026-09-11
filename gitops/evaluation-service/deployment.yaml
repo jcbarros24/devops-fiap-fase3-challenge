@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evaluation-service
+  namespace: togglemaster
+  labels:
+    app: evaluation-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: evaluation-service
+  template:
+    metadata:
+      labels:
+        app: evaluation-service
+    spec:
+      containers:
+        - name: evaluation-service
+          # A tag abaixo é atualizada automaticamente pelo job gitops-update
+          # do pipeline de CI (.github/workflows/reusable-go-ci.yml).
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/evaluation-service:v1.0.0-init
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - secretRef:
+                name: evaluation-service-secrets
+          env:
+            - name: PORT
+              value: "8004"
+            - name: FLAG_SERVICE_URL
+              value: "http://flag-service:8002"
+            - name: TARGETING_SERVICE_URL
+              value: "http://targeting-service:8003"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 20

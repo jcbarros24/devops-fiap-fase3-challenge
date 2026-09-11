@@ -1,0 +1,18 @@
+name: analytics-service
+
+on:
+  pull_request:
+    paths:
+      - "services/analytics-service/**"
+  push:
+    branches: [main]
+    paths:
+      - "services/analytics-service/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/reusable-python-ci.yml
+    with:
+      service_name: analytics-service
+      service_path: services/analytics-service
+    secrets: inherit
