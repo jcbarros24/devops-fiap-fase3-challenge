@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: <GIT_REPO_URL>
+    repoURL: https://github.com/jcbarros24/devops-fiap-fase3-challenge.git
     targetRevision: main
     path: gitops/evaluation-service
   destination:

@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     # Troque pela URL real do repositório depois do primeiro push.
-    repoURL: <GIT_REPO_URL>
+    repoURL: https://github.com/jcbarros24/devops-fiap-fase3-challenge.git
     targetRevision: main
     path: gitops/auth-service
   destination:

@@ -1,11 +1,11 @@
 # Relatório de Entrega — Tech Challenge Fase 3
 
 ## Participantes
-- <NOME COMPLETO> — RM <NÚMERO>
-- <adicionar demais integrantes do grupo>
+- José Carlos Barros — RM <NÚMERO>
+- <adicionar demais integrantes do grupo, se houver>
 
 ## Links
-- Repositório: <URL do GitHub>
+- Repositório: https://github.com/jcbarros24/devops-fiap-fase3-challenge
 - Vídeo de demonstração: <URL — YouTube não listado, Drive, etc.>
 - Documentação adicional (se houver): <URL>
 
