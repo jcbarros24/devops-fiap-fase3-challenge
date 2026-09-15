@@ -19,7 +19,7 @@ spec:
         - name: evaluation-service
           # A tag abaixo é atualizada automaticamente pelo job gitops-update
           # do pipeline de CI (.github/workflows/reusable-go-ci.yml).
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/evaluation-service:v1.0.0-init
+          image: 711747463826.dkr.ecr.us-east-1.amazonaws.com/evaluation-service:v1.0.0-init
           ports:
             - containerPort: 8004
           envFrom:
